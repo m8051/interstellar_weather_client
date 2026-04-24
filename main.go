@@ -3,7 +3,7 @@ Phase 1: The Interstellar Weather Client challenge.
 
 The Objective
 Build a Go package that fetches weather data for different planets.
-This will teach you how to handle JSON tagging, HTTP timeouts,
+This will teach me how to handle JSON tagging, HTTP timeouts,
 and Pointer-based structs (which are used heavily in Terraform to represent "optional" data).
 */
 
@@ -32,7 +32,7 @@ type PlanetInfo struct {
 
 /*
 The Task: The "Bridge" Function
-Your next goal is to write the function that connects the two worlds. Think of this as the "Ingestion Engine."
+My next goal is to write a function that connects the two worlds. Think of this as the "Ingestion Engine."
 This is called Data Normalizer Layer, moving data from "unsafe" pointers into "safe" local variables
 */
 
@@ -79,7 +79,7 @@ func ToInternal(w WeatherAPI) PlanetInfo {
 
 func main() {
 	// How do you turn rawJSON into a WeatherAPI struct?
-	// Hint: You'll need "encoding/json" and json.Unmarshal()
+	// Hint: I'll need "encoding/json" and json.Unmarshal()
 	rawJSON := `{"planet_name": "Mars", "temp_celsius": -65.5, "conditions": "Dusty", "is_habitable": false}`
 
 	var jsonBlob = []byte(rawJSON)
