@@ -1,6 +1,7 @@
 package main
 
 import (
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -108,23 +109,55 @@ func TestToInternal(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := ToInternal(tc.input)
 			if got.Name != tc.expected.Name {
-				t.Errorf("Got(%v) but want (%v)", got.Name, tc.expected.Name)
+				t.Errorf("Got(%v) but want(%v)", got.Name, tc.expected.Name)
 			}
 			if got.Temperature != tc.expected.Temperature {
-				t.Errorf("Got(%v) but want (%v)", got.Temperature, tc.expected.Temperature)
+				t.Errorf("Got(%v) but want(%v)", got.Temperature, tc.expected.Temperature)
 			}
 			if got.AtmosphericCondition != tc.expected.AtmosphericCondition {
-				t.Errorf("Got(%v) but want (%v)", got.AtmosphericCondition, tc.expected.AtmosphericCondition)
+				t.Errorf("Got(%v) but want(%v)", got.AtmosphericCondition, tc.expected.AtmosphericCondition)
 			}
 			if got.Habitable != tc.expected.Habitable {
-				t.Errorf("Got(%v) but want (%v)", got.Habitable, tc.expected.Habitable)
+				t.Errorf("Got(%v) but want(%v)", got.Habitable, tc.expected.Habitable)
 			}
 			if got.Habitable != tc.expected.Habitable {
-				t.Errorf("Got(%v) but want (%v)", got.Habitable, tc.expected.Habitable)
+				t.Errorf("Got(%v) but want(%v)", got.Habitable, tc.expected.Habitable)
 			}
 			if got.LastUpdated.IsZero() {
 				t.Error("Time was never set")
 			}
 		})
+	}
+}
+
+func TestStateFile(t *testing.T) {
+	p := PlanetInfo{
+		Name:                 "Jupiter",
+		Temperature:          -100.10,
+		AtmosphericCondition: "Rocky",
+		Habitable:            false,
+		LastUpdated:          time.Now(),
+	}
+
+	tempFile := filepath.Join(t.TempDir(), "test_state.json")
+	SaveState(tempFile, p)
+	jsonData, err := LoadState(tempFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if jsonData.Name != p.Name {
+		t.Errorf("Got(%v) but want(%v)", jsonData.Name, p.Name)
+	}
+	if jsonData.Temperature != p.Temperature {
+		t.Errorf("Got(%v) but want(%v)", jsonData.Temperature, p.Temperature)
+	}
+	if jsonData.AtmosphericCondition != p.AtmosphericCondition {
+		t.Errorf("Got(%v) but want(%v)", jsonData.AtmosphericCondition, p.AtmosphericCondition)
+	}
+	if jsonData.Habitable != p.Habitable {
+		t.Errorf("Got(%v) but want(%v)", jsonData.Habitable, p.Habitable)
+	}
+	if jsonData.LastUpdated.Truncate(time.Second) != p.LastUpdated.Truncate(time.Second) {
+		t.Errorf("Got(%v) but want(%v)", jsonData.LastUpdated, p.LastUpdated)
 	}
 }
