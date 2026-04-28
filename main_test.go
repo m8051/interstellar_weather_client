@@ -161,3 +161,55 @@ func TestStateFile(t *testing.T) {
 		t.Errorf("Got(%v) but want(%v)", jsonData.LastUpdated, p.LastUpdated)
 	}
 }
+
+func TestReconcile(t *testing.T) {
+
+	type testCase struct {
+		name          string
+		old           PlanetInfo
+		new           PlanetInfo
+		expectedCount int
+	}
+
+	tests := []testCase{
+		{
+			name:          "No Changes",
+			old:           PlanetInfo{Name: "Mars", Temperature: -65.5, AtmosphericCondition: "Dusty", Habitable: false},
+			new:           PlanetInfo{Name: "Mars", Temperature: -65.5, AtmosphericCondition: "Dusty", Habitable: false},
+			expectedCount: 0,
+		},
+		{
+			name:          "Temperature Drift",
+			old:           PlanetInfo{Name: "Mars", Temperature: -65.5, AtmosphericCondition: "Dusty", Habitable: false},
+			new:           PlanetInfo{Name: "Mars", Temperature: -75.5, AtmosphericCondition: "Dusty", Habitable: false},
+			expectedCount: 1,
+		},
+		{
+			name:          "AtmosphericCondition Drift",
+			old:           PlanetInfo{Name: "Mars", Temperature: -65.5, AtmosphericCondition: "Dusty", Habitable: false},
+			new:           PlanetInfo{Name: "Mars", Temperature: -65.5, AtmosphericCondition: "Rocky", Habitable: false},
+			expectedCount: 1,
+		},
+		{
+			name:          "Habitable Drift",
+			old:           PlanetInfo{Name: "Mars", Temperature: -65.5, AtmosphericCondition: "Dusty", Habitable: false},
+			new:           PlanetInfo{Name: "Mars", Temperature: -65.5, AtmosphericCondition: "Dusty", Habitable: true},
+			expectedCount: 1,
+		},
+		{
+			name:          "Initial Creation",
+			old:           PlanetInfo{},
+			new:           PlanetInfo{Name: "Mars", Temperature: -65.5},
+			expectedCount: 1,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			changes, _ := Reconcile(tc.new, tc.old)
+			if len(changes) != tc.expectedCount {
+				t.Errorf("Test '%s' failed: expected %d changes, but got %d changes", tc.name, len(changes), tc.expectedCount)
+			}
+		})
+	}
+}
