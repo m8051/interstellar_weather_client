@@ -131,6 +131,10 @@ func Reconcile(newPlanet PlanetInfo, oldPlanet PlanetInfo) ([]string, PlanetInfo
 		changes = append(changes, fmt.Sprintf("Atmosphere drift: %s -> %s", oldPlanet.AtmosphericCondition, newPlanet.AtmosphericCondition))
 	}
 
+	if newPlanet.Habitable != oldPlanet.Habitable {
+		changes = append(changes, fmt.Sprintf("Habitable drift: %v -> %v", oldPlanet.Habitable, newPlanet.Habitable))
+	}
+
 	// We skip Time for the test to avoid "flaky" results based on milliseconds
 	return changes, newPlanet
 }
