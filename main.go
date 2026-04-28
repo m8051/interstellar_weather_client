@@ -110,35 +110,29 @@ func LoadState(file string) (jsonData PlanetInfo, err error) {
 	return p, nil
 }
 
-func Reconcile(newPlanet PlanetInfo, oldPlanet PlanetInfo, file string) (driftedPlanet PlanetInfo, err error) {
+func Reconcile(newPlanet PlanetInfo, oldPlanet PlanetInfo) ([]string, PlanetInfo) {
+	var changes []string
+
+	// First Run check (it means there was no file)
+	if oldPlanet.Name == "" {
+		changes = append(changes, fmt.Sprintf("Initial state creation for %s", newPlanet.Name))
+		return changes, newPlanet
+	}
 
 	if newPlanet.Name != oldPlanet.Name {
-		fmt.Printf("Drift in Name detected (%v) != (%v)\n", newPlanet.Name, oldPlanet.Name)
+		changes = append(changes, fmt.Sprintf("Name drift: %s -> %s", oldPlanet.Name, newPlanet.Name))
 	}
 
 	if newPlanet.Temperature != oldPlanet.Temperature {
-		fmt.Printf("Drift in Temperature detected (%v) != (%v)\n", newPlanet.Temperature, oldPlanet.Temperature)
+		changes = append(changes, fmt.Sprintf("Temp drift: %v -> %v", oldPlanet.Temperature, newPlanet.Temperature))
 	}
 
 	if newPlanet.AtmosphericCondition != oldPlanet.AtmosphericCondition {
-		fmt.Printf("Drift in AtmosphericCondition detected (%v) != (%v)\n", newPlanet.AtmosphericCondition, oldPlanet.AtmosphericCondition)
+		changes = append(changes, fmt.Sprintf("Atmosphere drift: %s -> %s", oldPlanet.AtmosphericCondition, newPlanet.AtmosphericCondition))
 	}
 
-	if newPlanet.Habitable != oldPlanet.Habitable {
-		fmt.Printf("Drift in Habitable detected (%v) != (%v)\n", newPlanet.Habitable, oldPlanet.Habitable)
-	}
-
-	if newPlanet.LastUpdated.Truncate(time.Minute) != oldPlanet.LastUpdated.Truncate(time.Minute) {
-		fmt.Printf("Drift in LastUpdated detected (%v) != (%v)\n", newPlanet.LastUpdated, oldPlanet.LastUpdated)
-	}
-
-	err = SaveState(file, newPlanet)
-
-	if err != nil {
-		return newPlanet, err
-	}
-
-	return newPlanet, nil
+	// We skip Time for the test to avoid "flaky" results based on milliseconds
+	return changes, newPlanet
 }
 
 func main() {
@@ -147,7 +141,7 @@ func main() {
 
 	// How do you turn rawJSON into a WeatherAPI struct?
 	// Hint: You'll need "encoding/json" and json.Unmarshal()
-	rawJSON := `{"planet_name": "Mars", "temp_celsius": -100.5, "conditions": "Dusty", "is_habitable": false}`
+	rawJSON := `{"planet_name": "Mars", "temp_celsius": -65.5, "conditions": "Dusty", "is_habitable": false}`
 
 	var jsonBlob = []byte(rawJSON)
 
@@ -159,12 +153,17 @@ func main() {
 
 	planet := ToInternal(w)
 	//fmt.Printf("Planet %v\n", planet)
+	plan, updatedPlanet := Reconcile(planet, oldState)
 
-	driftedPlanet, err := Reconcile(planet, oldState, file)
-	if err != nil {
-		fmt.Printf("Error detected %v", err)
+	for _, change := range plan {
+		fmt.Println("PLAN:", change)
 	}
-	fmt.Println(driftedPlanet)
+
+	if len(plan) > 0 {
+		err := SaveState(file, updatedPlanet)
+		if err != nil {
+			fmt.Printf("Error saving the content in the file (%v):(%v)\n", file, err)
+		}
+	}
 
 }
-
