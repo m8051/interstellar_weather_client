@@ -37,48 +37,51 @@ Your next goal is to write the function that connects the two worlds. Think of t
 This is called Data Normalizer Layer, moving data from "unsafe" pointers into "safe" local variables
 */
 
-func ToInternal(w WeatherAPI) PlanetInfo {
+func ToInternal(w []WeatherAPI) map[string]PlanetInfo {
 
-	var planetName string
-	if w.Name != nil {
-		planetName = *w.Name
-	} else {
-		planetName = "Mars"
+	planetMap := make(map[string]PlanetInfo)
+	for _, j := range w {
+		var planetName string
+		if j.Name != nil {
+			planetName = *j.Name
+		} else {
+			planetName = "Mars"
+		}
+
+		var planetTemperature float64
+		if j.Temp != nil {
+			planetTemperature = *j.Temp
+		} else {
+			planetTemperature = -22.5
+		}
+
+		var planetCondition string
+		if j.Conditions != nil {
+			planetCondition = *j.Conditions
+		} else {
+			planetCondition = "Dry"
+		}
+
+		var planetHabitable bool
+		if j.Habitable != nil {
+			planetHabitable = *j.Habitable
+		} else {
+			planetHabitable = false
+		}
+
+		planet := PlanetInfo{
+			Temperature:          planetTemperature,
+			AtmosphericCondition: planetCondition,
+			Habitable:            planetHabitable,
+			LastUpdated:          time.Now(),
+		}
+		planetMap[planetName] = planet
 	}
 
-	var planetTemperature float64
-	if w.Temp != nil {
-		planetTemperature = *w.Temp
-	} else {
-		planetTemperature = -22.5
-	}
-
-	var planetCondition string
-	if w.Conditions != nil {
-		planetCondition = *w.Conditions
-	} else {
-		planetCondition = "Dry"
-	}
-
-	var planetHabitable bool
-	if w.Habitable != nil {
-		planetHabitable = *w.Habitable
-	} else {
-		planetHabitable = false
-	}
-
-	planet := PlanetInfo{
-		Name:                 planetName,
-		Temperature:          planetTemperature,
-		AtmosphericCondition: planetCondition,
-		Habitable:            planetHabitable,
-		LastUpdated:          time.Now(),
-	}
-
-	return planet
+	return planetMap
 }
 
-func SaveState(file string, p PlanetInfo) (err error) {
+func SaveState(file string, p map[string]PlanetInfo) (err error) {
 	jsonData, err := json.MarshalIndent(p, "", "\t")
 	if err != nil {
 		fmt.Printf("There was an error enconding the JSON %v\n", err)
@@ -92,8 +95,8 @@ func SaveState(file string, p PlanetInfo) (err error) {
 	return nil
 }
 
-func LoadState(file string) (jsonData PlanetInfo, err error) {
-	var p PlanetInfo
+func LoadState(file string) (jsonData map[string]PlanetInfo, err error) {
+	var p map[string]PlanetInfo
 	content, err := os.ReadFile(file)
 	if err != nil {
 		if err == os.ErrNotExist {
@@ -110,29 +113,25 @@ func LoadState(file string) (jsonData PlanetInfo, err error) {
 	return p, nil
 }
 
-func Reconcile(newPlanet PlanetInfo, oldPlanet PlanetInfo) ([]string, PlanetInfo) {
+func Reconcile(newPlanet map[string]PlanetInfo, oldPlanet map[string]PlanetInfo) (plans []string, p map[string]PlanetInfo) {
 	var changes []string
 
-	// First Run check (it means there was no file)
-	if oldPlanet.Name == "" {
-		changes = append(changes, fmt.Sprintf("Initial state creation for %s", newPlanet.Name))
-		return changes, newPlanet
-	}
+	for name, newData := range newPlanet {
+		oldData, exists := oldPlanet[name]
+		if !exists {
+			changes = append(changes, fmt.Sprintf("Initial state creation for %s", name))
+		} else {
 
-	if newPlanet.Name != oldPlanet.Name {
-		changes = append(changes, fmt.Sprintf("Name drift: %s -> %s", oldPlanet.Name, newPlanet.Name))
-	}
-
-	if newPlanet.Temperature != oldPlanet.Temperature {
-		changes = append(changes, fmt.Sprintf("Temp drift: %v -> %v", oldPlanet.Temperature, newPlanet.Temperature))
-	}
-
-	if newPlanet.AtmosphericCondition != oldPlanet.AtmosphericCondition {
-		changes = append(changes, fmt.Sprintf("Atmosphere drift: %s -> %s", oldPlanet.AtmosphericCondition, newPlanet.AtmosphericCondition))
-	}
-
-	if newPlanet.Habitable != oldPlanet.Habitable {
-		changes = append(changes, fmt.Sprintf("Habitable drift: %v -> %v", oldPlanet.Habitable, newPlanet.Habitable))
+			if newData.Temperature != oldData.Temperature {
+				changes = append(changes, fmt.Sprintf("Temperature drift: %f -> %f", oldData.Temperature, newData.Temperature))
+			}
+			if newData.AtmosphericCondition != oldData.AtmosphericCondition {
+				changes = append(changes, fmt.Sprintf("AtmosphericCondition drift: %s -> %s", oldData.AtmosphericCondition, newData.AtmosphericCondition))
+			}
+			if newData.Habitable != oldData.Habitable {
+				changes = append(changes, fmt.Sprintf("Habitable drift: %v -> %v", oldData.Habitable, newData.Habitable))
+			}
+		}
 	}
 
 	// We skip Time for the test to avoid "flaky" results based on milliseconds
@@ -143,20 +142,23 @@ func main() {
 	file := "tfstate.json"
 	oldState, err := LoadState(file)
 
-	// How do you turn rawJSON into a WeatherAPI struct?
-	// Hint: You'll need "encoding/json" and json.Unmarshal()
-	rawJSON := `{"planet_name": "Mars", "temp_celsius": -65.5, "conditions": "Dusty", "is_habitable": false}`
+	rawJSON := `[
+		{ "planet_name": "Mars", "temp_celsius": -65.5, "conditions": "Dusty","is_habitable": false },
+		{ "planet_name": "Venus", "temp_celsius": 464.0, "conditions": "Acid Rain", "is_habitable": false },
+		{ "planet_name": "Earth", "temp_celsius": 15.0, "conditions": "Cloudy", "is_habitable": true }
+	]`
 
 	var jsonBlob = []byte(rawJSON)
 
-	var w WeatherAPI
+	var w []WeatherAPI
 	err = json.Unmarshal(jsonBlob, &w)
 	if err != nil {
 		fmt.Println("error: ", err)
 	}
 
 	planet := ToInternal(w)
-	//fmt.Printf("Planet %v\n", planet)
+	fmt.Printf("Planet %v\n", planet)
+
 	plan, updatedPlanet := Reconcile(planet, oldState)
 
 	for _, change := range plan {
